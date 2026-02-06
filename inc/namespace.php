@@ -231,6 +231,18 @@ function render_block_search( string $block_content, array $block, \WP_Block $in
 }
 
 /**
+ * Return a key that changes with the current request so router region content
+ * is fully replaced on navigation (avoids leaving Load More–appended nodes).
+ *
+ * @return string
+ */
+function get_router_region_key() : string {
+	$path = wp_parse_url( add_query_arg( [] ), PHP_URL_PATH );
+	$query = wp_parse_url( add_query_arg( [] ), PHP_URL_QUERY );
+	return ( $path ?: '/' ) . ( $query ? '?' . $query : '' );
+}
+
+/**
  * Add data attributes to the query block to describe the block query.
  *
  * @param string    $block_content Default query content.
@@ -245,5 +257,27 @@ function render_block_query( $block_content, $block ) {
 	$block_content->set_attribute( 'data-wp-interactive', 'query-filter' );
 	$block_content->set_attribute( 'data-wp-router-region', 'query-' . ( $block['attrs']['queryId'] ?? 0 ) );
 
-	return (string) $block_content;
+	$html = (string) $block_content;
+
+	// Wrap inner content in a keyed div so the Interactivity API replaces the
+	// whole region on navigate (instead of reconciling). Otherwise Load More–
+	// appended nodes (4,5,6) are never in the router’s VDOM, so after search
+	// we’d get 114,115,116 + leftover 4,5,6.
+	$key = get_router_region_key();
+	$open = strpos( $html, '>' );
+	if ( $open === false ) {
+		return $html;
+	}
+	$inner_start = $open + 1;
+	$last_close  = strrpos( $html, '</div>' );
+	if ( $last_close === false || $last_close <= $inner_start ) {
+		return $html;
+	}
+	$inner = substr( $html, $inner_start, $last_close - $inner_start );
+
+	return substr( $html, 0, $inner_start )
+		. '<div data-wp-key="' . esc_attr( $key ) . '">'
+		. $inner
+		. '</div>'
+		. substr( $html, $last_close );
 }

@@ -1,4 +1,5 @@
-import { store, withSyncEvent, getContext } from '@wordpress/interactivity';
+import { store, withSyncEvent, getContext, getElement } from '@wordpress/interactivity';
+import { stripAppendedFromRegion } from '../utils/strip-appended.js';
 
 // Register the store
 const { state } = store( 'query-filter', {
@@ -9,6 +10,7 @@ const { state } = store( 'query-filter', {
 			//event.preventDefault();
 		} ),
 		*navigateReset( e ) {
+			stripAppendedFromRegion( getElement(), getContext() );
 			const { queryId } = getContext();
 			const isInherited = queryId === null || queryId === undefined;
 

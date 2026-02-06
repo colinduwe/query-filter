@@ -1,10 +1,12 @@
-import { store, getElement } from '@wordpress/interactivity';
+import { store, getElement, getContext } from '@wordpress/interactivity';
+import { stripAppendedFromRegion } from '../utils/strip-appended.js';
 
 // Register the store
 store('query-filter', {
 	actions: {
 	*navigateOrder(e) {
 		e.preventDefault();
+		stripAppendedFromRegion( getElement(), getContext() );
 		const { ref } = getElement();
 
 		let name, value;

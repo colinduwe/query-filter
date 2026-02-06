@@ -1,4 +1,5 @@
 import { store, getElement, getContext } from '@wordpress/interactivity';
+import { stripAppendedFromRegion } from '../utils/strip-appended.js';
 
 const updateURL = async ( action, value, name, queryId ) => {
 	const url = new URL( action );
@@ -10,6 +11,8 @@ const updateURL = async ( action, value, name, queryId ) => {
 
  	const isInherited = queryId === null || queryId === undefined;
 	console.log( isInherited, queryId );
+
+	stripAppendedFromRegion( getElement(), getContext() );
 
 	// Remove only this query's pagination.
 	if ( isInherited ) {
@@ -29,7 +32,7 @@ const { state } = store( 'query-filter', {
 	actions: {
 		*navigate( e ) {
 			e.preventDefault();
-
+			stripAppendedFromRegion( getElement(), getContext() );
 			const { actions } = yield import(
 				'@wordpress/interactivity-router'
 			);
@@ -78,6 +81,7 @@ const { state } = store( 'query-filter', {
 				currentURL.searchParams.delete( name );
 			}
 
+			stripAppendedFromRegion( getElement(), getContext() );
 			const { actions } = yield import(
 				'@wordpress/interactivity-router'
 			);

@@ -1,7 +1,10 @@
 import { store, getElement } from '@wordpress/interactivity';
 
 // Register the store
-store('query-filter', {
+const { state } = store( 'query-filter', {
+	state: {
+		isLoading: false,
+	},
 	actions: {
 	*navigateOrder(e) {
 		e.preventDefault();
@@ -14,7 +17,6 @@ store('query-filter', {
 
 		name = ref.name;
 		value = ref.value || ref.dataset.value;
-		console.log(ref, ref.options[ref.selectedIndex]);
 
 		// Handle order parameters
 		if (name) {
@@ -47,8 +49,13 @@ store('query-filter', {
 		}
 
 		// Navigate to the updated URL
-		const { actions } = yield import('@wordpress/interactivity-router');
-		yield actions.navigate(currentURL.toString());
+		state.isLoading = true;
+		try {
+			const { actions } = yield import('@wordpress/interactivity-router');
+			yield actions.navigate(currentURL.toString());
+		} finally {
+			state.isLoading = false;
+		}
     }
   }
 });

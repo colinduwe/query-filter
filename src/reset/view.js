@@ -2,10 +2,12 @@ import { store, withSyncEvent, getContext } from '@wordpress/interactivity';
 
 // Register the store
 const { state } = store( 'query-filter', {
+	state: {
+		isLoading: false,
+	},
 	actions: {
 		// `event.preventDefault()` requires synchronous event access.
-		preventNavigation: withSyncEvent( ( event ) => {
-			console.log( event );
+		preventNavigation: withSyncEvent( () => {
 			//event.preventDefault();
 		} ),
 		*navigateReset( e ) {
@@ -49,11 +51,16 @@ const { state } = store( 'query-filter', {
 			}
 
 			// Navigate to the updated URL
-			const { actions } = yield import(
-				'@wordpress/interactivity-router'
-			);
+			state.isLoading = true;
+			try {
+				const { actions } = yield import(
+					'@wordpress/interactivity-router'
+				);
 
-			yield actions.navigate( currentURL.toString() );
+				yield actions.navigate( currentURL.toString() );
+			} finally {
+				state.isLoading = false;
+			}
 		},
 	},
 } );

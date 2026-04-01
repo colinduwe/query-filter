@@ -1,39 +1,22 @@
 import { store, getElement, getContext } from '@wordpress/interactivity';
 
-const updateURL = async ( action, value, name, queryId ) => {
-	const url = new URL( action );
-	if ( value || name === 's' ) {
-		url.searchParams.set( name, value );
-	} else {
-		url.searchParams.delete( name );
-	}
-
- 	const isInherited = queryId === null || queryId === undefined;
-	console.log( isInherited, queryId );
-
-	// Remove only this query's pagination.
-	if ( isInherited ) {
-		// Global search: remove global paged/page and pretty permalink segment.
-		url.searchParams.delete( 'paged' );
-		url.searchParams.delete( 'page' );
-		url.pathname = url.pathname.replace( /\/page\/\d+\/?$/i, '/' );
-	} else {
-		url.searchParams.delete( `query-${ queryId }-page` );
-	}
-
-	const { actions } = await import( '@wordpress/interactivity-router' );
-	await actions.navigate( url.toString() );
-};
-
 const { state } = store( 'query-filter', {
+	state: {
+		isLoading: false,
+	},
 	actions: {
 		*navigate( e ) {
 			e.preventDefault();
 
-			const { actions } = yield import(
-				'@wordpress/interactivity-router'
-			);
-			yield actions.navigate( e.target.value );
+			state.isLoading = true;
+			try {
+				const { actions } = yield import(
+					'@wordpress/interactivity-router'
+				);
+				yield actions.navigate( e.target.value );
+			} finally {
+				state.isLoading = false;
+			}
 		},
 		*navigateCheckboxes( e ) {
 			e.preventDefault();
@@ -46,8 +29,6 @@ const { state } = store( 'query-filter', {
 
 			// Get the current URL and preserve existing query parameters
 			const currentURL = new URL( window.location.href );
-			console.log( { [`query-${ queryId }-page`]: currentURL.searchParams.get( `query-${ queryId }-page` )} );
-
 
 			// Scoped (non-inherited) query: query-{id}-{taxonomy} and its page param.
 			if ( ! isInherited ) {
@@ -64,7 +45,7 @@ const { state } = store( 'query-filter', {
 			);
 
 			// Collect all selected values
-			checkboxes.forEach( (checkbox) => {
+			checkboxes.forEach( ( checkbox ) => {
 				values.push( checkbox.value );
 			} );
 
@@ -78,11 +59,15 @@ const { state } = store( 'query-filter', {
 				currentURL.searchParams.delete( name );
 			}
 
-			const { actions } = yield import(
-				'@wordpress/interactivity-router'
-			);
-			yield actions.navigate( currentURL.toString() );
-
+			state.isLoading = true;
+			try {
+				const { actions } = yield import(
+					'@wordpress/interactivity-router'
+				);
+				yield actions.navigate( currentURL.toString() );
+			} finally {
+				state.isLoading = false;
+			}
 		},
 		*search( e ) {
 			e.preventDefault();
@@ -105,9 +90,49 @@ const { state } = store( 'query-filter', {
 			state.searchValue = value;
 
 			const { queryId } = getContext();
-			console.log( { queryId } );
 
 			yield updateURL( action, value, name, queryId );
 		},
 	},
 } );
+
+/**
+ * Client-side navigation for search / URL updates (shared with search action).
+ */
+async function updateURL( action, value, name, queryId ) {
+	const url = new URL( action );
+	if ( value || name === 's' ) {
+		url.searchParams.set( name, value );
+	} else {
+		url.searchParams.delete( name );
+	}
+
+	const isInherited = queryId === null || queryId === undefined;
+
+	// Remove only this query's pagination.
+	if ( isInherited ) {
+		// Global search: remove global paged/page and pretty permalink segment.
+		url.searchParams.delete( 'paged' );
+		url.searchParams.delete( 'page' );
+		url.pathname = url.pathname.replace( /\/page\/\d+\/?$/i, '/' );
+	} else {
+		url.searchParams.delete( `query-${ queryId }-page` );
+	}
+
+	state.isLoading = true;
+	try {
+		const { actions } = await import( '@wordpress/interactivity-router' );
+		await actions.navigate( url.toString() );
+
+		// `scroll-pin.js` dispatches `query-filter-restore-focus` after GSAP refresh when parallax runs.
+		// Without that stack, dispatch here so DOM-backed focus restore still runs.
+		if (
+			typeof document !== 'undefined' &&
+			! document.querySelector( '.parallax-scroll-container' )
+		) {
+			window.dispatchEvent( new Event( 'query-filter-restore-focus' ) );
+		}
+	} finally {
+		state.isLoading = false;
+	}
+}

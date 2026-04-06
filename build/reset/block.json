@@ -80,7 +80,10 @@
   },
   "textdomain": "query-filter",
   "editorScript": "file:./index.js",
-  "style": "query-filter-view",
+  "style": [
+    "query-filter-view",
+    "wp-block-button"
+  ],
   "viewScriptModule": "file:./view.js",
   "render": "file:./render.php"
 }

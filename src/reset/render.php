@@ -1,13 +1,13 @@
 <?php
 /**
- * Render the Order Filter block.
+ * Render the Query Reset filter block.
  *
  * @package query-filter
  */
 
 $wrapper_attributes = get_block_wrapper_attributes(
 	array(
-		'class' => 'wp-block-query-filter',
+		'class' => 'wp-block-query-filter wp-block-button',
 	)
 );
 
@@ -28,13 +28,15 @@ $context = array(
 );
 
 ?>
-<button
-	<?php echo $wrapper_attributes; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-	data-wp-interactive="query-filter"
-	<?php echo wp_interactivity_data_wp_context( $context ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-	id="<?php echo esc_attr( $filter_id ); ?>"
-	class="query-filter__button"
-	data-wp-on--click="actions.navigateReset"
->
-	<?php echo esc_html( $label ); ?>
-</button>
+<div <?php echo $wrapper_attributes; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+	<button
+		type="button"
+		data-wp-interactive="query-filter"
+		<?php echo wp_interactivity_data_wp_context( $context ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+		id="<?php echo esc_attr( $filter_id ); ?>"
+		class="wp-block-button__link wp-element-button query-filter__button"
+		data-wp-on--click="actions.navigateReset"
+	>
+		<?php echo esc_html( $label ); ?>
+	</button>
+</div>

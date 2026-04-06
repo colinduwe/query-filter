@@ -2,7 +2,7 @@ import { store, getElement, getContext } from '@wordpress/interactivity';
 
 const updateURL = async ( action, value, name, queryId ) => {
 	const url = new URL( action );
-	if ( value || name === 's' ) {
+	if ( value || name === 's' || name === 'query-s' ) {
 		url.searchParams.set( name, value );
 	} else {
 		url.searchParams.delete( name );

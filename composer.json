@@ -11,5 +11,10 @@
 			"name": "Human Made Limited",
 			"email": "hello@humanmade.com"
 		}
-	]
+	],
+	"config": {
+		"allow-plugins": {
+			"composer/installers": true
+		}
+	}
 }

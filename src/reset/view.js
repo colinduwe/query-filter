@@ -37,7 +37,7 @@ const { state } = store( 'query-filter', {
 						currentURL.searchParams.delete( key );
 					}
 
-					if ( key === 'page' || key === 'paged' || key === 's' ) {
+					if ( key === 'page' || key === 'paged' || key === 's' || key === 'query-s' ) {
 						currentURL.searchParams.delete( key );
 					}
 				}

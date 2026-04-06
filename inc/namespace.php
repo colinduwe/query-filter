@@ -163,10 +163,96 @@ function pre_get_posts_transpose_query_vars( WP_Query $query ) : void {
 function filter_block_type_metadata( array $metadata ) : array {
 	// Add query context to search block.
 	if ( $metadata['name'] === 'core/search' ) {
-		$metadata['usesContext'] = array_merge( $metadata['usesContext'] ?? [], [ 'queryId', 'query' ] );
+		$metadata['usesContext'] = array_merge(
+			$metadata['usesContext'] ?? [],
+			[ 'queryId', 'query', 'enhancedPagination' ]
+		);
 	}
 
 	return $metadata;
+}
+
+/**
+ * Whether the Search block (inside a Query) should use Interactivity API navigation.
+ *
+ * When false, the form relies on a normal GET submit (no search-on-input, no router navigate).
+ * If the parent Query provides `enhancedPagination` in block context, that value is used;
+ * otherwise defaults to true for backward compatibility with older WordPress versions.
+ *
+ * @param \WP_Block $instance Search block instance.
+ * @param array     $block    Parsed search block (for filters).
+ * @return bool
+ */
+function should_use_client_navigation_for_query_search( \WP_Block $instance, array $block = [] ) : bool {
+	$default = true;
+	if ( array_key_exists( 'enhancedPagination', $instance->context ) ) {
+		$default = ! empty( $instance->context['enhancedPagination'] );
+	}
+
+	/**
+	 * Filters whether query-scoped Search uses client navigation (Interactivity API + router).
+	 *
+	 * @param bool      $use_client_nav Whether to use client navigation.
+	 * @param \WP_Block $instance       Search block instance.
+	 * @param array     $block          Parsed block array.
+	 */
+	return (bool) apply_filters( 'query_filter_search_client_navigation', $default, $instance, $block );
+}
+
+/**
+ * Remove data-wp-* directives from Search markup so the form can submit natively.
+ *
+ * @param string $html Block HTML.
+ * @return string
+ */
+function strip_interactivity_directives_from_search_markup( string $html ) : string {
+	$processor = new WP_HTML_Tag_Processor( $html );
+
+	while ( $processor->next_tag() ) {
+		$tag = $processor->get_tag();
+		if ( 'FORM' === $tag ) {
+			foreach (
+				[
+					'data-wp-interactive',
+					'data-wp-context',
+					'data-wp-on--submit',
+					'data-wp-on--keydown',
+					'data-wp-on--focusout',
+					'data-wp-class--wp-block-search__searchfield-hidden',
+				] as $attr
+			) {
+				$processor->remove_attribute( $attr );
+			}
+		} elseif ( 'INPUT' === $tag ) {
+			$class = (string) $processor->get_attribute( 'class' );
+			if ( str_contains( $class, 'wp-block-search__input' ) ) {
+				foreach (
+					[
+						'data-wp-bind--value',
+						'data-wp-on--input',
+						'data-wp-bind--aria-hidden',
+						'data-wp-bind--tabindex',
+					] as $attr
+				) {
+					$processor->remove_attribute( $attr );
+				}
+			}
+		} elseif ( 'BUTTON' === $tag ) {
+			foreach (
+				[
+					'data-wp-bind--aria-label',
+					'data-wp-bind--aria-controls',
+					'data-wp-bind--aria-expanded',
+					'data-wp-bind--type',
+					'data-wp-on--click',
+				] as $attr
+			) {
+				$processor->remove_attribute( $attr );
+			}
+		}
+	}
+
+	return $processor->get_updated_html();
 }
 
 /**
@@ -184,9 +270,12 @@ function render_block_search( string $block_content, array $block, \WP_Block $in
 
 	wp_enqueue_script_module( 'query-filter-taxonomy-view-script-module' );
 
+	// Inherited queries use the main WP_Query. Use `query-s` (not raw `s`) so WordPress does not
+	// treat the request as a global search (`is_search()` → search.php). pre_get_posts maps
+	// `query-s` → query var `s` via the `query-` prefix rule for the main query.
 	$query_var = empty( $instance->context['query']['inherit'] )
 		? sprintf( 'query-%d-s', $instance->context['queryId'] ?? 0 )
-		: 's';
+		: 'query-s';
 
 	// Add queryId to the context (null when inherited, numeric when scoped).
 	$query_id = empty( $instance->context['query']['inherit'] )
@@ -202,32 +291,54 @@ function render_block_search( string $block_content, array $block, \WP_Block $in
 	$value = wp_pre_kses_less_than( $value );
 	$value = strip_tags( $value );
 
-	wp_interactivity_state( 'query-filter', [
-		'searchValue' => $value,
-	] );
+	$use_client_navigation = should_use_client_navigation_for_query_search( $instance, $block );
 
-	$block_content = new WP_HTML_Tag_Processor( $block_content );
-	$block_content->next_tag( [ 'tag_name' => 'form' ] );
-	$block_content->set_attribute( 'action', $action );
-	$block_content->set_attribute( 'data-wp-interactive', 'query-filter' );
-	$block_content->set_attribute( 'data-wp-on--submit', 'actions.search' );
-	$block_content->set_attribute(
-		'data-wp-context',
-		wp_json_encode(
+	if ( $use_client_navigation ) {
+		wp_interactivity_state(
+			'query-filter',
 			[
-				'queryId'     => $query_id,
-				'searchValue' => '',
+				'searchValue' => $value,
 			]
-		)
-	);
-	$block_content->next_tag( [ 'tag_name' => 'input', 'class_name' => 'wp-block-search__input' ] );
-	$block_content->set_attribute( 'name', $query_var );
-	$block_content->set_attribute( 'inputmode', 'search' );
-	$block_content->set_attribute( 'value', $value );
-	$block_content->set_attribute( 'data-wp-bind--value', 'state.searchValue' );
-	$block_content->set_attribute( 'data-wp-on--input', 'actions.search' );
+		);
+	}
 
-	return (string) $block_content;
+	$block_content = $use_client_navigation
+		? $block_content
+		: strip_interactivity_directives_from_search_markup( $block_content );
+
+	$processor = new WP_HTML_Tag_Processor( $block_content );
+	$processor->next_tag( [ 'tag_name' => 'form' ] );
+	$processor->set_attribute( 'action', $action );
+	if ( ! $use_client_navigation ) {
+		$processor->set_attribute( 'method', 'get' );
+	}
+
+	if ( $use_client_navigation ) {
+		$processor->set_attribute( 'data-wp-interactive', 'query-filter' );
+		$processor->set_attribute( 'data-wp-on--submit', 'actions.search' );
+		$processor->set_attribute(
+			'data-wp-context',
+			wp_json_encode(
+				[
+					'queryId'            => $query_id,
+					'searchValue'        => '',
+					'clientNavigation'   => true,
+				]
+			)
+		);
+	}
+
+	$processor->next_tag( [ 'tag_name' => 'input', 'class_name' => 'wp-block-search__input' ] );
+	$processor->set_attribute( 'name', $query_var );
+	$processor->set_attribute( 'inputmode', 'search' );
+	$processor->set_attribute( 'value', $value );
+
+	if ( $use_client_navigation ) {
+		$processor->set_attribute( 'data-wp-bind--value', 'state.searchValue' );
+		$processor->set_attribute( 'data-wp-on--input', 'actions.search' );
+	}
+
+	return (string) $processor->get_updated_html();
 }
 
 /**

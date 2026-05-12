@@ -8,7 +8,7 @@ import {
 } from '@wordpress/components';
 import { useSelect } from '@wordpress/data';
 
-export default function Edit( { attributes, setAttributes } ) {
+export default function Edit( { attributes, setAttributes, clientId } ) {
 	const { taxonomy, emptyLabel, label, showLabel, useCheckboxes } = attributes;
 
 	const taxonomies = useSelect(
@@ -100,17 +100,25 @@ export default function Edit( { attributes, setAttributes } ) {
 						{ showLabel && (
 							<legend className="wp-block-query-filter__legend">{ label }</legend>
 						) }
-						{ terms.map( ( term ) => (
-							<span className="wp-block-query-filter__checkboxes-wrapper" key={ term.slug }>
-								<input
-									type="checkbox"
-									value={ term.slug }
-									id={`query-filter-${ term.slug }`}
-									name="taxonomy-term"
-								/>
-								<label for={`query-filter-${ term.slug }`}>{ term.name }</label>
-							</span>
-						) ) }
+						{ terms.map( ( term ) => {
+							const checkboxId = `query-filter-${ clientId }-${ term.slug }`;
+							return (
+								<span
+									className="wp-block-query-filter__checkboxes-wrapper"
+									key={ term.slug }
+								>
+									<input
+										type="checkbox"
+										value={ term.slug }
+										id={ checkboxId }
+										name="taxonomy-term"
+									/>
+									<label htmlFor={ checkboxId }>
+										{ term.name }
+									</label>
+								</span>
+							);
+						} ) }
 					</fieldset>
 				) : (
 				<>

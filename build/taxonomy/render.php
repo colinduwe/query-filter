@@ -45,17 +45,18 @@ if ( is_wp_error( $terms ) || empty( $terms ) ) {
 			</legend>
 			<?php foreach ( $terms as $term ) :
 				$checked = in_array( $term->slug, explode( ',', wp_unslash( $_GET[ $query_var ] ?? '' ) ), true );
+				$checkbox_id = $id . '-' . $term->slug;
 				?>
 				<span class="wp-block-query-filter__checkboxes-wrapper">
 					<input
 						type="checkbox"
 						name="<?php echo esc_attr( $query_var ); ?>"
 						value="<?php echo esc_attr( $term->slug ); ?>"
-						id="query-filter-<?php echo esc_attr( $term->slug ); ?>"
+						id="<?php echo esc_attr( $checkbox_id ); ?>"
 						<?php checked( $checked ); ?>
 						data-wp-on--change="actions.navigateCheckboxes"
 					/>
-					<label for="query-filter-<?php echo esc_attr( $term->slug ); ?>"><?php echo esc_html( $term->name ); ?></label>
+					<label for="<?php echo esc_attr( $checkbox_id ); ?>"><?php echo esc_html( $term->name ); ?></label>
 				</span>
 			<?php endforeach; ?>
 		</fieldset>

@@ -2,7 +2,7 @@
 	"$schema": "https://schemas.wp.org/trunk/block.json",
 	"apiVersion": 3,
 	"name": "query-filter/order",
-	"version": "0.1.0",
+	"version": "0.3.0",
 	"title": "Query Order Filter",
 	"category": "theme",
 	"icon": "sort",
@@ -10,6 +10,11 @@
 	"ancestor": [ "core/query" ],
 	"usesContext": [ "queryId", "query" ],
 	"attributes": {
+		"sortPreset": {
+			"type": "string",
+			"default": "insights",
+			"enum": [ "insights", "custom" ]
+		},
 		"orderOptions": {
 			"type": "array",
 			"default": [
@@ -24,24 +29,15 @@
 					"value": { "orderby": "date", "order": "asc" }
 				},
 				{
-					"label": "Alphabetical A-Z",
-					"slug": "alphabetical-a-z",
-					"value": { "orderby": "title", "order": "asc" }
-				},
-				{
-					"label": "Alphabetical Z-A",
-					"slug": "alphabetical-z-a",
-					"value": { "orderby": "title", "order": "desc" }
-				},
-				{
-					"label": "Random",
-					"slug": "random",
-					"value": { "orderby": "rand", "order": "" }
+					"label": "Most popular",
+					"slug": "most-popular",
+					"value": { "orderby": "wpp", "order": "" }
 				}
 			]
 		},
 		"label": {
-			"type": "string"
+			"type": "string",
+			"default": "Sort by"
 		},
 		"showLabel": {
 			"type": "boolean",
@@ -54,6 +50,10 @@
 		"labelOldest": {
 			"type": "string",
 			"default": "Oldest"
+		},
+		"labelPopular": {
+			"type": "string",
+			"default": "Most popular"
 		},
 		"labelTitleAsc": {
 			"type": "string",
@@ -70,7 +70,7 @@
 		"defaultOption": {
 			"type": "string",
 			"default": "newest",
-			"description": "The default order option"
+			"description": "The default order option slug"
 		}
 	},
 	"supports": {

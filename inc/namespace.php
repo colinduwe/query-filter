@@ -152,6 +152,8 @@ function pre_get_posts_transpose_query_vars( WP_Query $query ) : void {
 
 		$query->set( 'tax_query', $tax_query );
 	}
+
+	apply_popular_posts_order( $query );
 }
 
 /**

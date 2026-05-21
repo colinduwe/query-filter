@@ -1,54 +1,60 @@
-import { store, getElement } from '@wordpress/interactivity';
+import { store, getElement, getContext } from '@wordpress/interactivity';
 
-// Register the store
-store('query-filter', {
+const POPULAR_ORDERBY = 'wpp';
+
+/**
+ * Remove pagination params when sort changes (matches taxonomy filter behavior).
+ *
+ * @param {URL}    url
+ * @param {number|null} queryId
+ */
+function clearPaginationParams( url, queryId ) {
+	const isInherited = queryId === null || queryId === undefined;
+
+	if ( isInherited ) {
+		url.searchParams.delete( 'paged' );
+		url.searchParams.delete( 'page' );
+		url.pathname = url.pathname.replace( /\/page\/\d+\/?$/i, '/' );
+	} else {
+		url.searchParams.delete( `query-${ queryId }-page` );
+	}
+}
+
+store( 'query-filter', {
 	actions: {
-	*navigateOrder(e) {
-		e.preventDefault();
-		const { ref } = getElement();
+		*navigateOrder( e ) {
+			e.preventDefault();
+			const { ref } = getElement();
+			const { queryId } = getContext();
 
-		let name, value;
+			const currentURL = new URL( window.location.href );
+			const name = ref.name;
 
-		// Get the current URL and preserve existing query parameters
-		const currentURL = new URL(window.location.href);
-
-		name = ref.name;
-		value = ref.value || ref.dataset.value;
-		console.log(ref, ref.options[ref.selectedIndex]);
-
-		// Handle order parameters
-		if (name) {
-			if (value !== '') {
-				const optionEl = ref.options[ref.selectedIndex];
+			if ( name ) {
+				const optionEl = ref.options[ ref.selectedIndex ];
 				const orderby = optionEl?.dataset?.orderby;
 				const order = optionEl?.dataset?.order;
 
-				if (orderby) {
-					currentURL.searchParams.set(name, orderby);
-					const orderParam = name.replace('orderby', 'order');
+				if ( orderby ) {
+					currentURL.searchParams.set( name, orderby );
+					const orderParam = name.replace( 'orderby', 'order' );
 
-					if (order) {
-						currentURL.searchParams.set(orderParam, order);
+					if ( order && POPULAR_ORDERBY !== orderby ) {
+						currentURL.searchParams.set( orderParam, order );
 					} else {
-						currentURL.searchParams.delete(orderParam);
+						currentURL.searchParams.delete( orderParam );
 					}
 				} else {
-					// Fallback: remove params if no mapping found
-					currentURL.searchParams.delete(name);
-					const orderParam = name.replace('orderby', 'order');
-					currentURL.searchParams.delete(orderParam);
+					currentURL.searchParams.delete( name );
+					const orderParam = name.replace( 'orderby', 'order' );
+					currentURL.searchParams.delete( orderParam );
 				}
-			} else {
-				// If value is empty, remove the parameter
-				currentURL.searchParams.delete(name);
-				const orderParam = name.replace('orderby', 'order');
-				currentURL.searchParams.delete(orderParam);
 			}
-		}
 
-		// Navigate to the updated URL
-		const { actions } = yield import('@wordpress/interactivity-router');
-		yield actions.navigate(currentURL.toString());
-    }
-  }
-});
+			clearPaginationParams( currentURL, queryId );
+
+			const { actions } = yield import( '@wordpress/interactivity-router' );
+			yield actions.navigate( currentURL.toString() );
+		},
+	},
+} );

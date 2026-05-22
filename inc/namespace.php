@@ -243,8 +243,8 @@ function render_block_query( $block_content, $block ) {
 	$block_content = new WP_HTML_Tag_Processor( $block_content );
 	$block_content->next_tag();
 
-	// Always allow region updates on interactivity, use standard core region naming.
-	$block_content->set_attribute( 'data-wp-interactive', 'query-filter' );
+	// Router region only — do not replace core/query's data-wp-interactive. Enhanced
+	// pagination prefetch/navigate callbacks require the core/query context (url).
 	$block_content->set_attribute( 'data-wp-router-region', 'query-' . ( $block['attrs']['queryId'] ?? 0 ) );
 
 	return (string) $block_content;

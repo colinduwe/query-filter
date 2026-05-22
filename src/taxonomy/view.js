@@ -8,12 +8,9 @@ const updateURL = async ( action, value, name, queryId ) => {
 		url.searchParams.delete( name );
 	}
 
- 	const isInherited = queryId === null || queryId === undefined;
-	console.log( isInherited, queryId );
+	const isInherited = queryId === null || queryId === undefined;
 
-	// Remove only this query's pagination.
 	if ( isInherited ) {
-		// Global search: remove global paged/page and pretty permalink segment.
 		url.searchParams.delete( 'paged' );
 		url.searchParams.delete( 'page' );
 		url.pathname = url.pathname.replace( /\/page\/\d+\/?$/i, '/' );
@@ -26,6 +23,21 @@ const updateURL = async ( action, value, name, queryId ) => {
 };
 
 const { state } = store( 'query-filter', {
+	state: {
+		/** Shared selections map: param → string[]. Seeded by PHP, updated optimistically. */
+		selections: {},
+		/** True when at least one taxonomy term is selected. Drives clear-filters visibility. */
+		get hasSelections() {
+			return Object.values( state.selections || {} ).some(
+				( slugs ) => ( slugs || [] ).length > 0
+			);
+		},
+		/** Reactive checked state for each checkbox, bound via data-wp-bind--checked. */
+		get isChecked() {
+			const { param, slug } = getContext();
+			return ( state.selections[ param ] || [] ).includes( slug );
+		},
+	},
 	actions: {
 		*navigate( e ) {
 			e.preventDefault();
@@ -38,51 +50,43 @@ const { state } = store( 'query-filter', {
 		*navigateCheckboxes( e ) {
 			e.preventDefault();
 			const { ref } = getElement();
-			let name, values = [];
-			name = ref.name;
+			const name = ref.name;
 
 			const { queryId } = getContext();
 			const isInherited = queryId === null || queryId === undefined;
 
-			// Get the current URL and preserve existing query parameters
 			const currentURL = new URL( window.location.href );
-			console.log( { [`query-${ queryId }-page`]: currentURL.searchParams.get( `query-${ queryId }-page` )} );
 
-
-			// Scoped (non-inherited) query: query-{id}-{taxonomy} and its page param.
 			if ( ! isInherited ) {
 				currentURL.searchParams.delete( `query-${ queryId }-page` );
 			} else {
-				// For inherited queries also strip /page/{n} from pretty permalinks.
 				currentURL.pathname = currentURL.pathname.replace( /\/page\/\d+\/?$/i, '/' );
 			}
 
-			// Handle checkboxes directly
 			const container = ref.closest( '.wp-block-query-filter__checkboxes' );
-			const checkboxes = container.querySelectorAll(
-				`input[name="${name}"]:checked`
-			);
+			const checked = container.querySelectorAll( `input[name="${ name }"]:checked` );
 
-			// Collect all selected values
-			checkboxes.forEach( (checkbox) => {
-				values.push( checkbox.value );
-			} );
+			const values = [];
+			checked.forEach( ( checkbox ) => values.push( checkbox.value ) );
 
-			// Create a comma-separated string of values
+			// Optimistic update — reactive consumers (badge, chips) respond immediately.
+			const next = { ...state.selections };
+			if ( values.length ) {
+				next[ name ] = values;
+			} else {
+				delete next[ name ];
+			}
+			state.selections = next;
+
 			const value = values.join( ',' );
-
-			// Update the URL with the new value for checkboxes
 			if ( value ) {
 				currentURL.searchParams.set( name, value );
 			} else {
 				currentURL.searchParams.delete( name );
 			}
 
-			const { actions } = yield import(
-				'@wordpress/interactivity-router'
-			);
+			const { actions } = yield import( '@wordpress/interactivity-router' );
 			yield actions.navigate( currentURL.toString() );
-
 		},
 		*search( e ) {
 			e.preventDefault();
@@ -99,14 +103,11 @@ const { state } = store( 'query-filter', {
 				value = ref.value;
 			}
 
-			// Don't navigate if the search didn't really change.
 			if ( value === state.searchValue ) return;
 
 			state.searchValue = value;
 
 			const { queryId } = getContext();
-			console.log( { queryId } );
-
 			yield updateURL( action, value, name, queryId );
 		},
 	},

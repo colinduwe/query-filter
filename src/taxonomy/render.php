@@ -46,14 +46,20 @@ if ( is_wp_error( $terms ) || empty( $terms ) ) {
 			<?php foreach ( $terms as $term ) :
 				$checked = in_array( $term->slug, explode( ',', wp_unslash( $_GET[ $query_var ] ?? '' ) ), true );
 				$checkbox_id = $id . '-' . $term->slug;
+				$term_context = array(
+					'param' => $query_var,
+					'slug'  => $term->slug,
+				);
 				?>
-				<span class="wp-block-query-filter__checkboxes-wrapper">
+				<span class="wp-block-query-filter__checkboxes-wrapper"
+					<?php echo wp_interactivity_data_wp_context( $term_context ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 					<input
 						type="checkbox"
 						name="<?php echo esc_attr( $query_var ); ?>"
 						value="<?php echo esc_attr( $term->slug ); ?>"
 						id="<?php echo esc_attr( $checkbox_id ); ?>"
 						<?php checked( $checked ); ?>
+						data-wp-bind--checked="state.isChecked"
 						data-wp-on--change="actions.navigateCheckboxes"
 					/>
 					<label for="<?php echo esc_attr( $checkbox_id ); ?>"><?php echo esc_html( $term->name ); ?></label>

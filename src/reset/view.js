@@ -1,27 +1,20 @@
-import { store, withSyncEvent, getContext } from '@wordpress/interactivity';
+import { store, getContext } from '@wordpress/interactivity';
 
-// Register the store
 const { state } = store( 'query-filter', {
 	actions: {
-		// `event.preventDefault()` requires synchronous event access.
-		preventNavigation: withSyncEvent( ( event ) => {
-			console.log( event );
-			//event.preventDefault();
-		} ),
-		*navigateReset( e ) {
+		*navigateReset() {
 			const { queryId } = getContext();
 			const isInherited = queryId === null || queryId === undefined;
 
-			// Set search value to empty string
 			state.searchValue = '';
 
-			// Get the current URL
+			// Optimistic clear — chips and badge clear immediately.
+			state.selections = {};
+
 			const currentURL = new URL( window.location.href );
 
-    		// Remove only relevant params.
 			[ ...currentURL.searchParams.keys() ].forEach( ( key ) => {
 				if ( ! isInherited ) {
-					// Scoped (non-inherited) query: query-{id}-{taxonomy} and its page param.
 					if (
 						key === `query-${ queryId }-page` ||
 						key.startsWith( `query-${ queryId }-` )
@@ -29,10 +22,9 @@ const { state } = store( 'query-filter', {
 						currentURL.searchParams.delete( key );
 					}
 				} else {
-					// Inherited (global) query: query-{taxonomy} (no numeric id), plus global pagination.
 					if (
 						/^query-[a-z0-9_-]+$/i.test( key ) &&
-						!/^query-\d+-/.test( key )
+						! /^query-\d+-/.test( key )
 					) {
 						currentURL.searchParams.delete( key );
 					}
@@ -43,16 +35,11 @@ const { state } = store( 'query-filter', {
 				}
 			} );
 
-			// For inherited queries also strip /page/{n} from pretty permalinks.
 			if ( isInherited ) {
 				currentURL.pathname = currentURL.pathname.replace( /\/page\/\d+\/?$/i, '/' );
 			}
 
-			// Navigate to the updated URL
-			const { actions } = yield import(
-				'@wordpress/interactivity-router'
-			);
-
+			const { actions } = yield import( '@wordpress/interactivity-router' );
 			yield actions.navigate( currentURL.toString() );
 		},
 	},

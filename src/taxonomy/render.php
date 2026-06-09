@@ -31,6 +31,23 @@ $terms = get_terms( [
 if ( is_wp_error( $terms ) || empty( $terms ) ) {
 	return;
 }
+
+// Seed the shared selections map for this filter's param from the request so
+// data-wp-bind--checked="state.isChecked" reflects active filters on initial load.
+// Self-contained: this no longer relies on a wrapping dropdown block to seed state.
+$active_slugs = array_values(
+	array_filter(
+		array_map( 'sanitize_title', explode( ',', wp_unslash( $_GET[ $query_var ] ?? '' ) ) )
+	)
+);
+if ( ! empty( $active_slugs ) ) {
+	wp_interactivity_state(
+		'query-filter',
+		array(
+			'selections' => array( $query_var => $active_slugs ),
+		)
+	);
+}
 ?>
 
 <div

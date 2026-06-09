@@ -22,6 +22,7 @@ function bootstrap() : void {
 	add_filter( 'block_type_metadata', __NAMESPACE__ . '\\filter_block_type_metadata', 10 );
 	add_action( 'init', __NAMESPACE__ . '\\register_blocks' );
 	add_action( 'enqueue_block_assets', __NAMESPACE__ . '\\action_wp_enqueue_scripts' );
+	add_action( 'wp_enqueue_scripts', __NAMESPACE__ . '\\enqueue_focus_restore_script' );
 
 	// Search.
 	add_filter( 'render_block_core/search', __NAMESPACE__ . '\\render_block_search', 10, 3 );
@@ -42,6 +43,28 @@ function action_wp_enqueue_scripts() : void {
 		plugins_url( '/build/taxonomy/index.css', PLUGIN_FILE ),
 		[],
 		$asset['version']
+	);
+}
+
+/**
+ * Enqueue DOM-backed search focus restore (survives router region replacement and GSAP refresh).
+ *
+ * @return void
+ */
+function enqueue_focus_restore_script() : void {
+	if ( is_admin() ) {
+		return;
+	}
+	$path = ROOT_DIR . '/assets/js/query-filter-focus-restore.js';
+	if ( ! file_exists( $path ) ) {
+		return;
+	}
+	wp_enqueue_script(
+		'query-filter-focus-restore',
+		plugins_url( 'assets/js/query-filter-focus-restore.js', PLUGIN_FILE ),
+		[],
+		(string) filemtime( $path ),
+		true
 	);
 }
 
@@ -240,12 +263,23 @@ function render_block_search( string $block_content, array $block, \WP_Block $in
  * @return string
  */
 function render_block_query( $block_content, $block ) {
+	wp_interactivity_state(
+		'query-filter',
+		[
+			'isLoading' => false,
+		]
+	);
+
 	$block_content = new WP_HTML_Tag_Processor( $block_content );
 	$block_content->next_tag();
 
 	// Router region only — do not replace core/query's data-wp-interactive. Enhanced
 	// pagination prefetch/navigate callbacks require the core/query context (url).
 	$block_content->set_attribute( 'data-wp-router-region', 'query-' . ( $block['attrs']['queryId'] ?? 0 ) );
+
+	// Namespaced binding: the wrapper's data-wp-interactive is core/query (enhanced
+	// pagination), so reference the query-filter store explicitly for the loading class.
+	$block_content->set_attribute( 'data-wp-class--is-loading', 'query-filter::state.isLoading' );
 
 	return (string) $block_content;
 }
